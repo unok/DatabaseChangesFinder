@@ -1,4 +1,10 @@
-<?php /** @noinspection PhpComposerExtensionStubsInspection */
+<?php
+/**
+ * Database Changes Finder
+ *
+ * Copyright (c) 2020 Kazuhiko UNO(unok)
+ * This software is released under the MIT License, see LICENSE.
+ */
 
 use Carbon\Carbon;
 
@@ -80,6 +86,8 @@ class DatabaseStatisticsDiff
     }
 
     /**
+     * @param string $table
+     * @param string $key
      * @param string|array $message
      */
     public function addDiff(string $table, string $key, $message): void
