@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+  phpcli74:
+    tty: true
+    build: ./
+    volumes:
+      - ./:/var/www/html:cached
+      - ./php.ini:/usr/local/etc/php/php.ini:cached
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    working_dir: /var/www/html
