@@ -3,6 +3,8 @@
 DatabaseChangesFinder is an application that measures changes from a specific point in time based on statistical information of a database and obtains differential data.
 The information is predictive from statistics and table column naming conventions. Please use it as a reference value.
 
+**It is specific to PostgreSQL statistics and is not available for other databases.**
+
 ## Setup
 
 ### environment variable
