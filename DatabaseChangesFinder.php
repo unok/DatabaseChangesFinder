@@ -51,7 +51,7 @@ class DatabaseChangesFinder
     {
         $newStatistics = new DatabaseStatistics($this->connection);
         $oldStatistics = DatabaseStatistics::createObjectFromJson(file_get_contents($this->getSnapshotFileName()), $this->connection);
-        echo $newStatistics->diff($oldStatistics, $newStatistics)->toJson() . PHP_EOL;
+        echo $newStatistics->diff($oldStatistics)->toJson() . PHP_EOL;
     }
 
     /**
@@ -190,14 +190,17 @@ class DatabaseStatistics
         return $statistics;
     }
 
-    public function diff(DatabaseStatistics $oldDS, DatabaseStatistics $newDS): DatabaseStatisticsDiff
+    public function diff(DatabaseStatistics $oldDS): DatabaseStatisticsDiff
     {
         $oldStatistics = $oldDS->getStatistics();
-        $newStatistics = $newDS->getStatistics();
+        $newStatistics = $this->getStatistics();
         $databaseStatisticsDiff = new DatabaseStatisticsDiff();
+        $oldTables = array_keys($oldStatistics);
+        $newTables = array_keys($newStatistics);
         foreach ($oldStatistics as $table => $oldStatistic) {
             if (!isset($newStatistics[$table])) {
                 $databaseStatisticsDiff->addDiff($table, 'schema', "Table {$table} has been removed or renamed.");
+                continue;
             }
             $newStatistic = $newStatistics[$table];
             $hasDiff = $this->diffStatisticsDetail(
@@ -302,12 +305,32 @@ class DatabaseStatistics
 
 }
 
-// 実行処理
-$databaseUrl = getenv('DATABASE_URL');
-if (empty($databaseUrl)) {
-    echo '環境変数 DATABASE_URL に接続情報を設定してください。';
-    exit(1);
+class Database {
+    private PDO $connection;
+    public function __construct()
+    {
+        $databaseUrl = getenv('DATABASE_URL');
+        if (empty($databaseUrl)) {
+            echo '環境変数 DATABASE_URL に接続情報を設定してください。';
+            exit(1);
+        }
+        $urlInformation = parse_url($databaseUrl);
+        $database = preg_replace('/^\//', '', $urlInformation['path']);
+        $dsn = sprintf("pgsql:dbname=%s;host=%s;port=%s", $database, $urlInformation['host'], $urlInformation['port']);
+        $this->connection = new PDO($dsn, $urlInformation['user'], $urlInformation['pass']);
+    }
+
+    /**
+     * @return PDO
+     */
+    public function getConnection(): PDO
+    {
+        return $this->connection;
+    }
 }
+
+// 実行処理
+
 $USAGE = "php {$argv[0]} start|end transaction_key";
 if ($argc !== 3 || !in_array($argv[1], ['start', 'end'])) {
     echo 'USAGE: ' . $USAGE . PHP_EOL;
@@ -315,14 +338,8 @@ if ($argc !== 3 || !in_array($argv[1], ['start', 'end'])) {
 }
 [$action, $transactionKey] = [$argv[1], $argv[2]];
 
-$urlInformation = parse_url($databaseUrl);
-$database = preg_replace('/^\//', '', $urlInformation['path']);
-$dsn = sprintf("pgsql:dbname=%s;host=%s;port=%s", $database, $urlInformation['host'], $urlInformation['port']);
-$connection = new PDO($dsn, $urlInformation['user'], $urlInformation['pass']);
-
-$makeDiffFromDatabase = new DatabaseChangesFinder($connection, $action, $transactionKey);
+$makeDiffFromDatabase = new DatabaseChangesFinder((new Database())->getConnection(), $action, $transactionKey);
 try {
-
     $makeDiffFromDatabase->run();
 } catch (InvalidArgumentException $e) {
     echo $e->getMessage() . PHP_EOL;
